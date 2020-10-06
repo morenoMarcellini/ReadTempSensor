@@ -154,7 +154,7 @@ HAL_TickFreqTypeDef uwTickFreq = HAL_TICK_FREQ_DEFAULT;  /* 1KHz */
   *         to have correct HAL operation.
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_Init(void)
+HAL_StatusTypeDef __attribute__((noinline)) HAL_Init(void)
 {
   /* Configure Flash prefetch, Instruction cache, Data cache */ 
 #if (INSTRUCTION_CACHE_ENABLE != 0U)
@@ -250,7 +250,7 @@ __weak void HAL_MspDeInit(void)
   * @param TickPriority Tick interrupt priority.
   * @retval HAL status
   */
-__weak HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
+__weak HAL_StatusTypeDef __attribute__((noinline)) HAL_InitTick(uint32_t TickPriority)
 {
   /* Configure the SysTick to have interrupt in 1ms time basis*/
   if (HAL_SYSTICK_Config(SystemCoreClock / (1000U / uwTickFreq)) > 0U)

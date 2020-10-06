@@ -23,11 +23,10 @@
 #include <string.h>
 
 #include "main.h"
-#include "stdLibrary.h"
+#include "habanero.h"
 
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
-
 
 /**
   * @brief  The application entry point.
@@ -35,9 +34,13 @@ static void SystemClock_Config(void);
   */
 int main(void)
 {
-  int data;
+  int32_t data, unit, decimal;
+  uint32_t T;
   float temp, volt;
-  char str[64];
+  const float multiplier = 3.3f/4095.0f;
+  const float divider = 1.0f/0.0025f;
+  char str[128], C;
+  Integer res;
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -45,28 +48,28 @@ int main(void)
   SystemClock_Config();
 
   /*  Setup for LED */
+  RCC->AHB1ENR |= 1;
   ledOn();
   addition1(SystemCoreClock); // pause
   /* Setup TIM2 for triggering the reading */
-  RCC->APB1ENR |= 1;
+  RCC->APB1ENR |= 1;	// clock on APB1ENR bus
   TIM2->PSC = 1600 - 1; // clock 16MHz divided by 1600
   TIM2->ARR = 10000 - 1; /* Autoreload, or maximum value of the counter:
    	   	   	   	   	   	   we have divided the clock by 1600, therefore
    	   	   	   	   	   	   1 s (1 Hz) is equivalent to 10000 internal ticks  */
   TIM2->CNT = 0;		// we reset the count to zero.
-  TIM2->CR1 = 1;		// TIM2 starts counting
-
   /* We generate the trigger for ADC1 */
   TIM2->CCMR1 = 0x6800; // pwm1  mode, preload enable, define the waveform
   TIM2->CCER = 0x10; 	// ch2 enable
   TIM2->CCR2 = 50-1;	// When the CCR2 and the CNT are equal the ch2 perform an action
+  TIM2->CR1 = 1;		// TIM2 starts counting
 
   ledOff();
 
   /* Setup ADC1 */
-  RCC->AHB2ENR |= 0x0100;	// enable ADC1 clock
+  RCC->APB2ENR |= 0x0100;	// enable ADC1 clock
   /* Turn on the temperature sensor */
-  ADC->CCR |= 0x800000;
+  ADC->CCR |= 0x800000; /*!< ADC common control register */
   ADC->CCR &= ~0x400000;
   /* Turn on the A--->D converter */
   ADC1->SMPR1 = 0x4000000;	// sampling time mininum 10 us
@@ -75,33 +78,65 @@ int main(void)
   ADC1->CR2 |= 1;	// enable ADC1
 
   /* Initialize USART2 */
-  USART2_init();
+  USART2_open();
   USART2_printf("Welcome on board\r\n");
 
-  sprintf(str, "System Core Clock = %lu\r\n", SystemCoreClock);
+  sprintf(str, "System Bus Clock = %lu\r\n", SystemCoreClock);
   USART2_printf(str);
 
-  data = TIM2->CNT;		// do I get the counted out?
-  sprintf(str, "__FPU_PRESENT %x __FPU_USED %x\r\n", __FPU_PRESENT, __FPU_USED);
+#if 1
+  T = HAL_RCC_GetSysClockFreq();
+  sprintf(str, "CPU Clock = %lu\r\n", T);
   USART2_printf(str);
+  T = HAL_RCC_GetPCLK1Freq();
+  sprintf(str, "Serial bus Clock = %lu\r\n", T);
+  USART2_printf(str);
+#endif
+
+  USART2_printf("Press a character to start\r\n");
+  /* We init in exclusive RX */
+  C = USART2_read();
+
+  /* We re-init again in exclusive TX */
+  sprintf(str, "%c 0x%x\r\n", C, debug);
+  USART2_printf(str);
+
+//  data = TIM2->CNT;		// do Icounted out?
 
   while (1)
   {
 	  ledOff();
 	  USART2_printf("READY\r\n");
-//	  blinkForever(); // to debug
-//	  while (!(ADC1->SR & 0x2)){
-		  ledOn();
-		  addition();
+	  while (!(ADC1->SR & 0x2)){
+#if 0
 		  ledOff();
-		  dfp_addition1(16000000.0);
-//	  };
+		  addition();
+		  ledOn();
+		  fp_addition1(16000000.0f);
+#endif
+	  };
 	  data = ADC1->DR;
-	  volt = (double)data * 3.3/4095.0;
-	  temp = 25. + (volt-0.76)/0.0025;
-	  //sprintf(str, "READ %d, %f\r\n", data, temp);
+	  volt = (float)data * multiplier;
+	  /* Temperature (in °C) = {(VSENSE – V25) / Avg_Slope} + 25 */
+	  /* V25 = 0.76V, slope = 2.5 mV/C */
+	  temp = 25.0f + (volt-0.76f) * divider;
+	  floatToInt(temp, &res);
+#if 0
+	  sprintf(str, "READ %ld, %ld.%ld\r\n", data, res.unit, res.decimal);
+#else
+	  sprintf(str, "Temperature of CPU  %ld.%ld Celsius\r\n", res.unit, res.decimal);
+#endif
+	  USART2_printf(str);
 	  ledOn();
-	  USART2_printf("READ\r\n");
+#if 0
+	  unit = (int) temp;
+	  temp = temp -(float)unit;
+	  temp = temp*1000.0f;
+	  decimal = (int)temp;
+	  sprintf(str, "READ %ld, %ld.%ld\r\n", data, unit, decimal);
+	  USART2_printf(str); //"READ\r\n");
+#endif
+	  fp_addition1((float)(T)); // to wait longer
   }
 
 }
