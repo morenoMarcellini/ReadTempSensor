@@ -39,7 +39,7 @@ void blink();
 
 /* for test cases*/
 void addition();
-void addition1(int);
+void addition1(uint32_t);
 void addition2(int, int);
 void fp_addition1(float);
 void dfp_addition1(double);

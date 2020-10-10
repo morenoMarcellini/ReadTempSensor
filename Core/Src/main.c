@@ -28,10 +28,7 @@
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
 
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
+#if 0 /* if 0 it will compile the USART2-DMA version */
 int main(void)
 {
   int32_t data, unit, decimal;
@@ -101,7 +98,7 @@ int main(void)
   sprintf(str, "%c 0x%x\r\n", C, debug);
   USART2_printf(str);
 
-//  data = TIM2->CNT;		// do Icounted out?
+//  data = TIM2->CNT;		// do I counted out?
 
   while (1)
   {
@@ -141,6 +138,130 @@ int main(void)
 
 }
 
+#else /* DMA VERSION */
+
+#include "DMA-Collector.h"
+char str[] = "WaDgo057F9AuOzXeu4EwTgv6s0eJDeiiPQDFZdZWhz8gqp0u3XRbNgcWDI8fzWD7WaDgo057F9AuOzXeu4EwTgv6s0eJDeiiPQDFZdZWhz8gqp0u3XRbNgcWDI8fzWD7\r\n";
+char alp[] = "abcdefghijklmnopqrstuwyxzABCDEFGHIJKLMNOPQRSTUVWYXZabcdefghijklmnopqrstuwyxzABCDEFGHIJKLMNOPQRSTUVWYXZabcdefghijklmnopqrstuwyxzA";
+
+int main(void)
+{
+  int32_t data, unit, decimal;
+  uint32_t T, size;
+
+  float temp, volt;
+  const float multiplier = 3.3f/4095.0f;
+  const float divider = 1.0f/0.0025f;
+  char C;
+  Integer res;
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /*  Setup for LED */
+  RCC->AHB1ENR |= 1;
+  ledOn();
+  addition1(SystemCoreClock); // pause
+  /* Setup TIM2 for triggering the reading */
+  RCC->APB1ENR |= 1;	// clock on APB1ENR bus
+  TIM2->PSC = 1600 - 1; // clock 16MHz divided by 1600
+  TIM2->ARR = 10000 - 1; /* Autoreload, or maximum value of the counter:
+   	   	   	   	   	   	   we have divided the clock by 1600, therefore
+   	   	   	   	   	   	   1 s (1 Hz) is equivalent to 10000 internal ticks  */
+  TIM2->CNT = 0;		// we reset the count to zero.
+  /* We generate the trigger for ADC1 */
+  TIM2->CCMR1 = 0x6800; // pwm1  mode, preload enable, define the waveform
+  TIM2->CCER = 0x10; 	// ch2 enable
+  TIM2->CCR2 = 50-1;	// When the CCR2 and the CNT are equal the ch2 perform an action
+  TIM2->CR1 = 1;		// TIM2 starts counting
+
+  ledOff();
+
+  /* Setup ADC1 */
+  RCC->APB2ENR |= 0x0100;	// enable ADC1 clock
+  /* Turn on the temperature sensor */
+  ADC->CCR |= 0x800000; 	// ADC common control register
+  ADC->CCR &= ~0x400000;
+  /* Turn on the A--->D converter */
+  ADC1->SMPR1 = 0x4000000;	// sampling time mininum 10 us
+  ADC1->SQR3 = 18;			// channel 18th is the temperature sensor
+  ADC1->CR2 = 0x13000000; 	// trigger: EXTEN rising edge, EXTSEL 3 = TIM2.2
+  ADC1->CR2 |= 1;			// enable ADC1
+
+  /* Initialize USART2 only in TX @9600 baud */
+  USART2_initTX();
+  /* Because we transfer via DMA1-S6 we add an extra call */
+  USART2TX_Interrupt_init();
+  /* we init the DMA1 */
+  DMA1_USART2TX_init();
+
+  /* we can print out */
+  sprintf(str, "Wellcome on board\r\n");
+  size = strlen(str);
+  // while (USART2TX_DMA1_Interrupt == 0) {};
+  // USART2TX_DMA1_Interrupt = 1;
+  DMA1_USART2TX_write((unsigned int) str, (unsigned int) &USART2->DR, size);
+  addition1(SystemCoreClock);
+
+#if 0
+  sprintf(str, "Ready\r\n");
+  size = strlen(str);
+  while (USART2TX_DMA1_Interrupt == 0) {};
+  USART2TX_DMA1_Interrupt = 0;
+  DMA1_USART2TX_setup(str, (unsigned int) &USART2->DR, size);
+  addition();
+
+  /* we print the System Bus Clock */
+  sprintf(str, "System Bus Clock = %lu\r\n", SystemCoreClock);
+  size = strlen(str);
+  while (USART2TX_DMA1_Interrupt == 0) {};
+  USART2TX_DMA1_Interrupt = 0;
+  DMA1_USART2TX_setup(str, (unsigned int) &USART2->DR, size);
+#endif
+
+  /* We print the cpu clock */
+  T = HAL_RCC_GetSysClockFreq();
+  sprintf(str, "CPU Clock = %lu\r\n", T);
+  size = strlen(str);
+
+  // while (USART2TX_DMA1_Interrupt == 0) {};
+  // USART2TX_DMA1_Interrupt = 0;
+  DMA1_USART2TX_write(str, (unsigned int) &USART2->DR, size);
+  addition1(SystemCoreClock);
+
+  /* We print the bus clock of USART2 */
+  T = HAL_RCC_GetPCLK1Freq();
+  sprintf(str, "Serial bus Clock = %lu\r\n", T);
+  size = strlen(str);
+  // while (USART2TX_DMA1_Interrupt == 0) {};
+  // USART2TX_DMA1_Interrupt = 0;
+  DMA1_USART2TX_write(str, (unsigned int) &USART2->DR, size);
+  addition1(SystemCoreClock);
+  while (1)
+  {
+	  ledOff();
+	  while (!(ADC1->SR & 0x2)){};
+	  data = ADC1->DR;
+	  volt = (float)data * multiplier;
+	  /* Temperature (in °C) = {(VSENSE – V25) / Avg_Slope} + 25 */
+	  /* V25 = 0.76V, slope = 2.5 mV/C */
+	  temp = 25.0f + (volt-0.76f) * divider;
+	  floatToInt(temp, &res);
+	  sprintf(str, "Temperature of CPU  %ld.%ld Celsius\r\n", res.unit, res.decimal);
+	  size = strlen(str);
+	  // while (USART2TX_DMA1_Interrupt == 0) {};
+	  // USART2TX_DMA1_Interrupt = 0;
+	  DMA1_USART2TX_write(str, (unsigned int) &USART2->DR, size);
+
+	  ledOn();
+	  fp_addition1((float)(T)); // to wait longer
+  }
+
+}
+
+#endif
 /**
   * @brief System Clock Configuration
   * @retval None

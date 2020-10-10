@@ -129,22 +129,20 @@ inline void ledOff(){
 
 inline void addition(){
 
-	uint32_t a = 12345678;
+	uint32_t a = SystemCoreClock;
 	int32_t flag = 1;
 	while(flag == 1){
 		a--;
-		if (a == 0) flag = 0;
+		if (a == 0) flag = a;
 	}
 
 	return;
 }
 
-inline void addition1(int in1){
+void __attribute__((noinline)) addition1(uint32_t in1){
 
-	int32_t flag = 1;
-	while (flag == 1){
-		in1--;
-		if (in1 == 0) flag = 0;
+	for (uint32_t i=0; i < in1; i++){
+		--in1;
 	}
 
 	return;
@@ -277,7 +275,7 @@ __attribute__(( weak )) void USART2_open(){
 	 * The final function should be able to set the correct
 	 * BAUD rate as function of the bus clock */
 	uint32_t bus, cpu_clock;
-	uint32_t baud=9600;
+	uint32_t baud = 9600;
 	Integer baud_q;
 
 	// uint32_t HAL_RCC_GetSysClockFreq() return the cpu clock;
@@ -308,6 +306,8 @@ __attribute__(( weak )) void USART2_open(){
 #if 0
 	char str[64];
 	sprintf(str, "%ld %ld \r\n", baud_q.unit, baud_q.decimal);
+	USART2_printf(str);
+	sprintf(str, "%ld %ld \r\n", cpu_clock, bus);
 	USART2_printf(str);
 #endif
 

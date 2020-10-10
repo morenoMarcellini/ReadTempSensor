@@ -20,7 +20,7 @@ set(PROJECT_CONFIG_DIR ${CMAKE_SOURCE_DIR}/Core/Inc)
 
 enable_language(C CXX ASM)
 
-set(ARM_FLAGS -DCORE_CM4 -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
+set(ARM_FLAGS -DCORE_CM4 -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -flto)
 
 add_compile_options(${ARM_FLAGS})
 add_compile_options(-Wall -Wextra)
@@ -48,6 +48,7 @@ set(STARTUP_SOURCE ${CMAKE_SOURCE_DIR}/Core/Startup/startup_stm32f446retx.s)
 set(COMMON_SOURCE 
 	${CMAKE_SOURCE_DIR}/Core/Src/main.c  
 	${CMAKE_SOURCE_DIR}/Core/Src/habanero.c
+        ${CMAKE_SOURCE_DIR}/Core/Src/DMA-Collector.c	
 	${CMAKE_SOURCE_DIR}/Core/Src/stm32f4xx_hal_msp.c  
 	${CMAKE_SOURCE_DIR}/Core/Src/stm32f4xx_it.c  
 	${CMAKE_SOURCE_DIR}/Core/Src/sysmem.c  
