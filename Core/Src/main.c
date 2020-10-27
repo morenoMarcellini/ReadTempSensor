@@ -163,7 +163,7 @@ int main(void)
   /*  Setup for LED */
   RCC->AHB1ENR |= 1;
   ledOn();
-  addition1(SystemCoreClock); // pause
+  addition(); // pause
   /* Setup TIM2 for triggering the reading */
   RCC->APB1ENR |= 1;	// clock on APB1ENR bus
   TIM2->PSC = 1600 - 1; // clock 16MHz divided by 1600
@@ -250,11 +250,11 @@ int main(void)
 	  temp = 25.0f + (volt-0.76f) * divider;
 	  floatToInt(temp, &res);
 	  sprintf(str, "Temperature of CPU  %ld.%ld Celsius\r\n", res.unit, res.decimal);
-	  size = strlen(str);
+	  // size = strlen(str);
 	  // while (USART2TX_DMA1_Interrupt == 0) {};
 	  // USART2TX_DMA1_Interrupt = 0;
-	  DMA1_USART2TX_write(str, (unsigned int) &USART2->DR, size);
-
+	  USART2_DMA1_printf(str);
+//	  DMA1_USART2TX_write(str, (unsigned int) &USART2->DR, size);
 	  ledOn();
 	  fp_addition1((float)(T)); // to wait longer
   }

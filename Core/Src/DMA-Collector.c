@@ -46,6 +46,19 @@ void DMA1_USART2TX_write(unsigned int src, unsigned int dst, unsigned int len){
 	return;
 }
 
+/* to use the same syntax as in pooling */
+void USART2_DMA1_printf(unsigned int src){
+
+	unsigned int dst, len;
+
+	dst = &USART2->DR;
+	len = strlen(src);
+
+	DMA1_USART2TX_write(src, dst, len);
+
+	return;
+}
+
 /* DMA1 Stream 6 interrupt handler */
 void DMA1_Stream6_IRQHandler(){
 

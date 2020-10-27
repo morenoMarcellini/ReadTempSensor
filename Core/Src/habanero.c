@@ -1,27 +1,92 @@
 /*
- * habanero.c
+ * habanero.c:
+ *
+ * A collection of randomly dstributed functions and helpers
  *
  *  Created on: Sep 21, 2020
  *      Author: Moreno
  */
+
 #include "habanero.h"
 #include <stdio.h>
 #include <string.h>
-
+#include "emergency.h"
 
 /* LED2 HELPERS */
-inline void rampRCC(){
+inline void rampRCCA(){
 
 	RCC->AHB1ENR |= 1; /* Enables GPIOA clock */
 
 	return;
 }
 
+inline void rampRCCC(){
+
+	RCC->AHB1ENR |= 0x4; // Enables GPIOC clock
+
+	return;
+}
+
 inline void rampGPIOA(){
 
+	RCC->AHB1ENR |= 1; 			// Enables GPIOA clock
 	GPIOA->MODER &= ~0x0C00;
 	GPIOA->MODER |=  0x0400;
 
+	return;
+}
+
+inline void rampGPIOC(){
+
+	RCC->AHB1ENR |= 0x4;		// Enables GPIOC clock
+#if 0
+	GPIOC->MODER &= ~0x300000;	// pin 10 reset
+	GPIOC->MODER |=  0x100000;	// pin 10 general-purpose
+#else
+	GPIOC->MODER &= ~0x300000;	// pin 10 reset
+	GPIOC->MODER |=  0x200000;	// pin 10 alternate function
+#endif
+
+#if 0
+	GPIOC->MODER &= ~0xC00000;	// pin 11 reset
+	GPIOC->MODER |=  0x400000;	// pin 11 general-purpose
+#else
+	GPIOC->MODER &= ~0xC00000;	// pin 11 reset
+	GPIOC->MODER |=  0x800000;	// pin 11 alternate function
+#endif
+	return;
+}
+
+/* Functions for leds */
+inline void ledOnExt10(){
+
+	GPIOC->ODR |= 0x400;
+
+	return;
+}
+
+inline void ledOffExt10(){
+
+	GPIOC->ODR &= ~0x400;
+
+	return;
+}
+
+inline void ledOnExt11(){
+#if 0
+	GPIOC->ODR |= 0x400;
+#else
+	GPIOC->BSRR |= 0x800;		// turns on bit on pin 11
+#endif
+	return;
+}
+
+inline void ledOffExt11(){
+#if 0
+	GPIOC->ODR &= ~0x400;
+#else
+	GPIOC->BSRR = 0x8000000;	// turns off bit on pin 11
+#endif
 	return;
 }
 
@@ -59,31 +124,32 @@ inline void blink(){
 
 inline void blinkForever(){
 
-	rampRCC();
+	// rampRCCA();
 	rampGPIOA();
 
 	/* Configure the TIM2 to clock @ ~1 Hz when SYSCLK =  16 MHz */
-	RCC->APB1ENR |= 1;	// we supply the clock on the APB1ENR bus
-	TIM2->PSC = 1600-1;	// divide SYSCLK by 1600
+	RCC->APB1ENR |= 1;		// we supply the clock on the APB1ENR bus
+	TIM2->PSC = 1600-1;		// divide SYSCLK by 1600
 	TIM2->ARR = 10000-1;	// count up to 10000
-	TIM2->CNT = 0;	// reset the counter
-	TIM2->CR1 = 0x1; 	// switch on the counter
+	TIM2->CNT = 0;			// reset the counter
+	TIM2->CR1 = 0x1; 		// switch on the counter
 
 	while (1){
 		while (!(TIM2->SR & 0x1)){}; 	// wait that the counter reaches TIM2->ARR
-		TIM2->SR &= ~0x1;	// reset the status register
+		TIM2->SR &= ~0x1;				// reset the status register
 		ledOn();
 		while (!(TIM2->SR & 0x1)){}; 	// wait that the counter reaches TIM2->ARR
-		TIM2->SR &= ~0x1;	// reset the status register
+		TIM2->SR &= ~0x1;				// reset the status register
 		ledOff();
 	}
 
 	return;
 }
 
+#if 0
 inline void emergency(){
 
-	rampRCC();
+	// rampRCCA();
 	rampGPIOA();
 
 	/* Configure the SysTick @ ~1 Hz
@@ -100,6 +166,7 @@ inline void emergency(){
 
 	return;
 }
+#endif
 
 inline void delayMs(int ms){
 
@@ -112,7 +179,7 @@ inline void delayMs(int ms){
 
 inline void ledOn(){
 
-	rampRCC();
+	// rampRCCA();
 	rampGPIOA();
 
 	GPIOA->ODR |= 0x20;
@@ -127,6 +194,8 @@ inline void ledOff(){
 	return;
 }
 
+
+/* usefull functions if you need to delay */
 inline void addition(){
 
 	uint32_t a = SystemCoreClock;
@@ -143,28 +212,6 @@ void __attribute__((noinline)) addition1(uint32_t in1){
 
 	for (uint32_t i=0; i < in1; i++){
 		--in1;
-	}
-
-	return;
-}
-
-inline void fp_addition1(float in1){
-
-	int32_t flag = 1;
-	while (flag == 1){
-		in1 = in1 - 1.0f;
-		if (in1 <= 0.0f) flag = 0;
-	}
-
-	return;
-}
-
-inline void dfp_addition1(double in1){
-
-	int32_t flag = 1;
-	while (flag == 1){
-		in1 = in1 - 1.0;
-		if (in1 <= 0) flag = 0;
 	}
 
 	return;
@@ -188,6 +235,46 @@ inline void addition2(int in1, int in2){
 
 	return;
 }
+/* Floating point version */
+inline void fp_addition(){
+
+	int32_t flag = 1;
+	float T;
+
+	T = (float) SystemCoreClock;
+
+	while (flag == 1){
+		T = T - 1.0f;
+		if (T <= 0.0f) flag = 0;
+	}
+
+	return;
+}
+
+inline void fp_addition1(float in1){
+
+	int32_t flag = 1;
+	while (flag == 1){
+		in1 = in1 - 1.0f;
+		if (in1 <= 0.0f) flag = 0;
+	}
+
+	return;
+}
+
+#if 0 /* Only single precision float */
+inline void dfp_addition1(double in1){
+
+	int32_t flag = 1;
+	while (flag == 1){
+		in1 = in1 - 1.0;
+		if (in1 <= 0) flag = 0;
+	}
+
+	return;
+}
+#endif
+
 
 /* USART2 Helper */
 __attribute__(( weak )) void USART2_init(){
@@ -253,7 +340,7 @@ __attribute__(( weak )) void USART2_initRX(){
 	return;
 }
 
-uint32_t calcBRR(Integer *brr, uint32_t baud, uint32_t clock){
+static uint32_t calcBRR(Integer *brr, uint32_t baud, uint32_t clock){
 
 		const float mult = 16.0f;
 		float res;
@@ -352,4 +439,11 @@ void floatToInt(float f, Integer *ret){
 	ret->decimal = (int32_t)((f-(float)ret->unit)*mult);
 
 	return;
+}
+
+/* some stuff */
+int rand(int* seed)
+{
+  seed[0] = seed[0]*0x343FD+0x269EC3;  // a=214013, b=2531011
+  return (seed[0] >> 0x10) & 0x7FFF;
 }

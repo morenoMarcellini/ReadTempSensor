@@ -17,6 +17,7 @@ static int32_t USART2TX_DMA1_Interrupt = 1;
 /* Functions definition */
 void DMA1_USART2TX_init();
 void DMA1_USART2TX_write();
+void USART2_DMA1_printf(unsigned int);
 void DMA1_Stream6_IRQHandler();
 void USART2_IRQHandler();
 void USART2TX_Interrupt_init();
